@@ -89,13 +89,29 @@ download_and_verify(
 check_directory_exists_and_not_empty(${LIBMPV_SRC} LIBMPV_SRC_VALID)
 
 # Extract the libmpv archive.
+# Note: cmake -E tar may not support all 7z codecs on Windows,
+# so we prefer 7z.exe when available, with cmake tar as fallback.
 if(NOT LIBMPV_SRC_VALID)
   message(STATUS "Extracting ${LIBMPV}...")
   make_directory("${LIBMPV_SRC}")
+  find_program(SEVENZ_EXECUTABLE 7z HINTS "C:/Program Files/7-Zip" "C:/Program Files (x86)/7-Zip")
   add_custom_target("${PROJECT_NAME}_LIBMPV_EXTRACT" ALL)
+  if(SEVENZ_EXECUTABLE)
+    add_custom_command(
+      TARGET "${PROJECT_NAME}_LIBMPV_EXTRACT"
+      COMMAND "${SEVENZ_EXECUTABLE}" x "\"${LIBMPV_ARCHIVE}\"" -o"\"${LIBMPV_SRC}\"" -y
+      WORKING_DIRECTORY "${LIBMPV_SRC}"
+    )
+  else()
+    add_custom_command(
+      TARGET "${PROJECT_NAME}_LIBMPV_EXTRACT"
+      COMMAND "${CMAKE_COMMAND}" -E tar xzf "\"${LIBMPV_ARCHIVE}\""
+      WORKING_DIRECTORY "${LIBMPV_SRC}"
+    )
+  endif()
   add_custom_command(
     TARGET "${PROJECT_NAME}_LIBMPV_EXTRACT"
-    COMMAND "${CMAKE_COMMAND}" -E tar xzf "\"${LIBMPV_ARCHIVE}\""
+    POST_BUILD
     COMMAND xcopy "\"${LIBMPV_SRC}/include/mpv\"" "\"${LIBMPV_SRC}/mpv\"" /E /H /C /I
     COMMAND rmdir "\"${LIBMPV_SRC}/include\"" /S /Q
     COMMAND ren "\"${LIBMPV_SRC}/mpv\"" "\"include\""
